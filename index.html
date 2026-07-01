@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <head>
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>J.M. Fabrics Limited - Multi-SBU QMS Portal</title>
+    <!-- Core UI & PDF Rendering Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         :root { --primary: #2563eb; --success: #16a34a; --danger: #dc2626; --bg: #f8fafc; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #334155; }
@@ -293,7 +294,7 @@
 </div>
 
 <script>
-    // ⚠️ IMPORTANT: PLACE YOUR GOOGLE APPS SCRIPT WEB APP DEPLOYMENT URL LINK HERE
+    // GOOGLE APPS SCRIPT WEB APP DEPLOYMENT URL LINK 
     const CLOUD_API_URL = "https://script.google.com/macros/s/AKfycbwXhPyixhwjHr9SKBDsmFWlMKCa6QknTbw6jo7ZadlKevD_xwKwy3h3NliNuu4tMNYp/exec";
 
     let totalActiveCheckpoints = 0;
@@ -611,17 +612,65 @@
             alert('🎉 Compliance log compiled and pushed into Cloud Master Database!');
             actionButtons.forEach(btn => btn.disabled = false);
             
+            if(triggerDownload) {
+                generateSingleFormPDF(payloadRows, auditor, date, sbu, section, line);
+            }
+
             // UI Reset
             document.querySelectorAll('.comment-box').forEach(box => box.value = '');
             document.querySelectorAll('input[type="radio"][value="Pass"]').forEach(radio => radio.checked = true);
             document.querySelectorAll('.checkpoint-card').forEach(card => card.classList.remove('fail'));
-            
-            if(triggerDownload) { alert('System Report Generation Target: Offline layout ready for pipeline mapping.'); }
         })
         .catch(error => {
             alert('Data Pipeline Exception: ' + error);
             actionButtons.forEach(btn => btn.disabled = false);
         });
+    }
+
+    // GENERATE INDIVIDUAL LINE AUDIT REPORT ON THE FLY
+    function generateSingleFormPDF(rows, auditor, date, sbu, section, line) {
+        const element = document.createElement('div');
+        element.style.padding = '30px';
+        element.style.fontFamily = 'Arial, sans-serif';
+        
+        element.innerHTML = `
+            <div style="text-align: center; border-bottom: 3px double #333; padding-bottom: 10px; margin-bottom: 20px;">
+                <h1 style="margin: 0; font-size: 22px;">J.M. FABRICS LIMITED</h1>
+                <h2 style="margin: 5px 0 0 0; font-size: 15px; color: #555;">DAILY LINE-SPECIFIC QUALITY AUDIT REPORT</h2>
+                <p style="margin: 5px 0 0 0; font-size: 13px;"><strong>Date:</strong> ${date} | <strong>Auditor:</strong> ${auditor}</p>
+                <p style="margin: 2px 0 0 0; font-size: 13px;"><strong>Scope:</strong> ${sbu} &bull; ${section} &bull; <strong>${line}</strong></p>
+            </div>
+            <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 15px;">
+                <thead>
+                    <tr style="background: #f2f2f2;">
+                        <th style="border: 1px solid #ddd; padding: 8px; width: 60%;">Audit Verification Checkpoint Question</th>
+                        <th style="border: 1px solid #ddd; padding: 8px; text-align: center; width: 15%;">Status</th>
+                        <th style="border: 1px solid #ddd; padding: 8px; width: 25%;">Specific Remarks/Findings</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rows.map(r => `
+                        <tr>
+                            <td style="border: 1px solid #ddd; padding: 7px;">${r.question}</td>
+                            <td style="border: 1px solid #ddd; padding: 7px; text-align: center; font-weight: bold; color: ${r.status === 'Pass' ? 'green' : (r.status === 'Fail' ? 'red' : '#666')}">${r.status}</td>
+                            <td style="border: 1px solid #ddd; padding: 7px; font-style: italic; color: #dc2626;">${r.comment || '-'}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+            <div style="margin-top: 60px; display: flex; justify-content: space-between; font-size: 12px;">
+                <div><p>__________________________</p><p>Floor Auditor Signature</p></div>
+                <div><p>__________________________</p><p>QMS Supervisor Verification</p></div>
+            </div>
+        `;
+
+        const opt = {
+            margin: 10,
+            filename: `QMS_Audit_${sbu}_${line}_${date}.pdf`,
+            html2canvas: { scale: 2 },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        html2pdf().set(opt).from(element).save();
     }
 
     // DASHBOARD LIVE RE-STREAM 
@@ -864,8 +913,117 @@
         document.getElementById('logs-table-body').innerHTML = `<tr><td colspan="8" style="text-align:center; color:#64748b;">Cache empty. Change tabs to query cloud server database.</td></tr>`;
     }
 
-    function downloadBulkDailyReport() { alert('Consolidated reporting script initialized.'); }
-    function downloadAnalysisPDF() { alert('Export pipeline activated for localized spreadsheet extraction summaries.'); }
+    // FIXED BULK DAILY REPORT PDF CONVERSION ENGINE
+    function downloadBulkDailyReport() {
+        const targetSBU = document.getElementById('bulk-download-sbu').value;
+        const targetDate = document.getElementById('bulk-download-date').value;
+
+        if (!targetDate) { alert("Please select an appraisal target date!"); return; }
+
+        fetch(CLOUD_API_URL)
+        .then(res => res.json())
+        .then(dataStream => {
+            const matches = dataStream.filter(row => row.sbu === targetSBU && row.date === targetDate);
+
+            if (matches.length === 0) {
+                alert(`No records found in the database for ${targetSBU} on date: ${targetDate}.`);
+                return;
+            }
+
+            const element = document.createElement('div');
+            element.style.padding = '25px';
+            element.style.fontFamily = 'Arial, sans-serif';
+
+            element.innerHTML = `
+                <div style="text-align: center; border-bottom: 3px double #1e3a8a; padding-bottom: 12px; margin-bottom: 20px;">
+                    <h1 style="margin: 0; font-size: 24px; color: #1e3a8a;">J.M. FABRICS LIMITED</h1>
+                    <h2 style="margin: 4px 0; font-size: 15px; color: #475569;">CONSOLIDATED SBU FLOOR OPERATIONS PERFORMANCE REPORT</h2>
+                    <p style="margin: 0; font-size: 13px; font-weight: bold;">SBU Target: ${targetSBU} | Execution Date: ${targetDate}</p>
+                </div>
+                <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 10px;">
+                    <thead>
+                        <tr style="background: #f1f5f9; border-bottom: 2px solid #cbd5e1;">
+                            <th style="border: 1px solid #cbd5e1; padding: 8px; text-align: left;">Line ID</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 8px; text-align: left;">Section</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 8px; text-align: left;">Assessment Checkpoint Metric</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 8px; text-align: center;">Status</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 8px; text-align: left;">Non-Conformance Remarks</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${matches.map(row => `
+                            <tr>
+                                <td style="border: 1px solid #e2e8f0; padding: 6px; font-weight: bold;">${row.line}</td>
+                                <td style="border: 1px solid #e2e8f0; padding: 6px;">${row.section}</td>
+                                <td style="border: 1px solid #e2e8f0; padding: 6px;">${row.question}</td>
+                                <td style="border: 1px solid #e2e8f0; padding: 6px; text-align: center; font-weight: bold; color: ${row.status === 'Pass' ? '#16a34a' : (row.status === 'Fail' ? '#dc2626' : '#475569')}">${row.status}</td>
+                                <td style="border: 1px solid #e2e8f0; padding: 6px; font-style: italic; color: #dc2626;">${row.comment || '-'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                <div style="margin-top: 50px; display: flex; justify-content: space-between; font-size: 11px;">
+                    <div><p>__________________________</p><p>Compiled By (QMS Floor Inspector)</p></div>
+                    <div><p>__________________________</p><p>Authorized Signatory (Quality Head)</p></div>
+                </div>
+            `;
+
+            const opt = {
+                margin: 10,
+                filename: `Consolidated_QMS_Report_${targetSBU}_${targetDate}.pdf`,
+                html2canvas: { scale: 2 },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+            };
+            html2pdf().set(opt).from(element).save();
+        })
+        .catch(err => alert("Data integration loss: " + err));
+    }
+
+    // FIXED ANALYSIS CHECKPOINT MATRIX PDF GENERATOR
+    function downloadAnalysisPDF() {
+        const sbuScope = document.getElementById('analysis-sbu-filter').value;
+        const analyticStart = document.getElementById('analysis-start-date').value || 'Beginning';
+        const analyticEnd = document.getElementById('analysis-end-date').value || 'Present';
+        const exactTargetQuestion = document.getElementById('analysis-checkpoint-filter').value;
+        
+        if(!exactTargetQuestion) { alert("Please select a valid checkpoint target to run evaluation prints."); return; }
+
+        const sourceTable = document.getElementById('analysis-table-body').cloneNode(true);
+        const element = document.createElement('div');
+        element.style.padding = '30px';
+        element.style.fontFamily = 'Arial, sans-serif';
+
+        element.innerHTML = `
+            <div style="border-bottom: 2px solid #0284c7; padding-bottom: 10px; margin-bottom: 25px;">
+                <h1 style="margin:0; font-size:22px; color:#0284c7;">J.M. FABRICS LIMITED</h1>
+                <h2 style="margin:5px 0; font-size:14px; color:#475569;">CRITICAL EVALUATION MATRIX TIMELINE SUMMARY</h2>
+                <p style="margin:2px 0; font-size:12px;"><strong>Filter Window:</strong> ${analyticStart} to ${analyticEnd} | <strong>SBU Target Scope:</strong> ${sbuScope}</p>
+                <p style="margin:10px 0 0 0; font-size:12px; background:#f1f5f9; padding:8px; border-left:4px solid #0284c7;"><strong>Evaluated Checkpoint Question:</strong> ${exactTargetQuestion}</p>
+            </div>
+            <table style="width:100%; border-collapse:collapse; font-size:12px;">
+                <thead>
+                    <tr style="background:#f8fafc; text-align:left; border-bottom:2px solid #cbd5e1;">
+                        <th style="padding:10px; border:1px solid #e2e8f0;">Line/Area ID</th>
+                        <th style="padding:10px; border:1px solid #e2e8f0;">Section Profile</th>
+                        <th style="padding:10px; border:1px solid #e2e8f0;">Total Days Checked</th>
+                        <th style="padding:10px; border:1px solid #e2e8f0;">Days Problems Identified</th>
+                        <th style="padding:10px; border:1px solid #e2e8f0;">Operational Health Risk Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${sourceTable.innerHTML}
+                </tbody>
+            </table>
+        `;
+
+        const opt = {
+            margin: 10,
+            filename: `Checkpoint_Deep_Analysis_Matrix.pdf`,
+            html2canvas: { scale: 2 },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        html2pdf().set(opt).from(element).save();
+    }
 </script>
 
 </body>
