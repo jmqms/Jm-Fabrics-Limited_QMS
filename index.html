@@ -47,6 +47,7 @@
         .comment-text { font-size: 13px; color: #dc2626; font-style: italic; display: block; margin-top: 4px; }
         .fail-tag { color: var(--danger); font-weight: bold; background: #fee2e2; padding: 2px 6px; border-radius: 4px; font-size: 13px; white-space: nowrap; }
         .downloader-panel { background: #eff6ff; border: 1px solid #bfdbfe; padding: 15px; border-radius: 8px; margin-bottom: 25px; }
+        tr { page-break-inside: avoid; break-inside: avoid; }
     </style>
 </head>
 <body>
@@ -291,7 +292,7 @@
 </div>
 
 <script>
-    // GOOGLE APPS SCRIPT WEB APP DEPLOYMENT URL LINK 
+    // PASTE YOUR GOOGLE APPS SCRIPT WEB APP DEPLOYMENT URL HERE
     const CLOUD_API_URL = "https://script.google.com/macros/s/AKfycbzMoBmtKK19GrJybAnA24C8roIiQKi1XI7_tJKUfOVMunmPSlpjIaf5Sg-7hKD6erf9dw/exec";
 
     let totalActiveCheckpoints = 0;
@@ -573,7 +574,6 @@
         else card.classList.remove('fail');
     }
 
-    // CLOUD DATABASE WRITE OPERATION
     function saveAuditData(triggerDownload = false) {
         const auditor = document.getElementById('auditor-name').value.trim();
         const date = document.getElementById('audit-date').value;
@@ -613,7 +613,6 @@
                 generateSingleFormPDF(payloadRows, auditor, date, sbu, section, line);
             }
 
-            // UI Reset
             document.querySelectorAll('.comment-box').forEach(box => box.value = '');
             document.querySelectorAll('input[type="radio"][value="Pass"]').forEach(radio => radio.checked = true);
             document.querySelectorAll('.checkpoint-card').forEach(card => card.classList.remove('fail'));
@@ -624,7 +623,6 @@
         });
     }
 
-    // GENERATE INDIVIDUAL LINE AUDIT REPORT ON THE FLY
     function generateSingleFormPDF(rows, auditor, date, sbu, section, line) {
         const element = document.createElement('div');
         element.style.padding = '30px';
@@ -647,7 +645,7 @@
                 </thead>
                 <tbody>
                     ${rows.map(r => `
-                        <tr>
+                        <tr style="page-break-inside: avoid; break-inside: avoid;">
                             <td style="border: 1px solid #ddd; padding: 7px;">${r.question}</td>
                             <td style="border: 1px solid #ddd; padding: 7px; text-align: center; font-weight: bold; color: ${r.status === 'Pass' ? 'green' : (r.status === 'Fail' ? 'red' : '#666')}">${r.status}</td>
                             <td style="border: 1px solid #ddd; padding: 7px; font-style: italic; color: #dc2626;">${r.comment || '-'}</td>
@@ -655,22 +653,22 @@
                     `).join('')}
                 </tbody>
             </table>
-            <div style="margin-top: 60px; display: flex; justify-content: space-between; font-size: 12px;">
+            <div style="margin-top: 60px; display: flex; justify-content: space-between; font-size: 12px; page-break-inside: avoid; break-inside: avoid;">
                 <div><p>__________________________</p><p>Floor Auditor Signature</p></div>
                 <div><p>__________________________</p><p>QMS Verification Authority</p></div>
             </div>
         `;
 
         const opt = {
-            margin: 10,
+            margin: [15, 12, 15, 12],
             filename: `QMS_Audit_${sbu}_${line}_${date}.pdf`,
             html2canvas: { scale: 2 },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            pagebreak: { mode: ['avoid-all', 'css'] }
         };
         html2pdf().set(opt).from(element).save();
     }
 
-    // DASHBOARD LIVE RE-STREAM 
     function loadDashboard() {
         const sbuFilter = document.getElementById('dashboard-sbu-filter').value;
         const startDateVal = document.getElementById('dashboard-start-date').value;
@@ -699,9 +697,15 @@
                 return true;
             });
 
+            // FIXED COMPLIANCE LOGIC: EXCLUDES N/A FROM RATIO CORRECTION
             const countTotal = filteredData.length;
             const countPass = filteredData.filter(e => e.status === 'Pass').length;
-            const trackingPercentage = countTotal > 0 ? ((countPass / countTotal) * 100).toFixed(1) + '%' : '0%';
+            const countFail = filteredData.filter(e => e.status === 'Fail').length;
+            const totalApplicable = countPass + countFail;
+
+            const trackingPercentage = totalApplicable > 0 
+                ? ((countPass / totalApplicable) * 100).toFixed(1) + '%' 
+                : '100%';
 
             document.getElementById('stat-total-audits').innerText = countTotal;
             document.getElementById('stat-factory-compliance').innerText = trackingPercentage;
@@ -731,8 +735,12 @@
             for (let key in performanceMatrix) {
                 const [sbu, line, section] = key.split('|||');
                 const dataset = performanceMatrix[key];
-                const lineTotal = dataset.pass + dataset.fail;
-                const lineRate = lineTotal > 0 ? ((dataset.pass / lineTotal) * 100).toFixed(1) + '%' : '100%';
+                
+                // Line level compliance fix (excluding N/A)
+                const lineApplicable = dataset.pass + dataset.fail;
+                const lineRate = lineApplicable > 0 
+                    ? ((dataset.pass / lineApplicable) * 100).toFixed(1) + '%' 
+                    : '100%';
                 
                 tableBody.innerHTML += `
                     <tr>
@@ -772,7 +780,6 @@
         });
     }
 
-    // SYSTEM ROWS LOG VIEWER RUNTIME
     function loadLogs() {
         const tableBody = document.getElementById('logs-table-body');
         tableBody.innerHTML = `<tr><td colspan="8" style="text-align:center;">🔄 Syncing database tables...</td></tr>`;
@@ -808,7 +815,6 @@
         });
     }
 
-    // DEEP CHECKPOINT MATRIX ANALYTICS ENGINE
     function initAnalysisFilters() {
         syncAnalysisCategories();
     }
@@ -900,17 +906,16 @@
                 `;
             }
             if(!matrixDataExists) {
-                mainAnalyticsTable.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#94a3b8;">No matching context values recorded.</td></tr>`;
+                mainAnalyticsTable.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#94a3b8;">No matching entry data matching criteria parameters.</td></tr>`;
             }
         });
     }
 
     function clearAllData() {
-        alert('Visual logs cleared.');
-        document.getElementById('logs-table-body').innerHTML = `<tr><td colspan="8" style="text-align:center; color:#64748b;">Cache empty.</td></tr>`;
+        alert('Visual cleared. The underlying structural files inside your Google Sheet are unmodified.');
+        document.getElementById('logs-table-body').innerHTML = `<tr><td colspan="8" style="text-align:center; color:#64748b;">Cache empty. Change tabs to query cloud server database.</td></tr>`;
     }
 
-    // BULK DAILY REPORT PDF GENERATION
     function downloadBulkDailyReport() {
         const targetSBU = document.getElementById('bulk-download-sbu').value;
         const targetDate = document.getElementById('bulk-download-date').value;
@@ -927,6 +932,14 @@
                 return;
             }
 
+            // EXTRACT METRICS FOR THE PDF HEADER METRIC COUNTERS
+            const totalAudited = matches.length;
+            const totalPass = matches.filter(r => r.status === 'Pass').length;
+            const totalFail = matches.filter(r => r.status === 'Fail').length;
+            const totalNA = matches.filter(r => r.status === 'N/A').length;
+            const netApplicable = totalPass + totalFail;
+            const complianceRate = netApplicable > 0 ? ((totalPass / netApplicable) * 100).toFixed(1) + '%' : '100%';
+
             const element = document.createElement('div');
             element.style.padding = '25px';
             element.style.fontFamily = 'Arial, sans-serif';
@@ -937,23 +950,43 @@
                     <h2 style="margin: 4px 0; font-size: 15px; color: #475569;">CONSOLIDATED SBU FLOOR OPERATIONS PERFORMANCE REPORT</h2>
                     <p style="margin: 0; font-size: 13px; font-weight: bold;">SBU Target: ${targetSBU} | Execution Date: ${targetDate}</p>
                 </div>
+
+                <div style="display: flex; gap: 15px; margin-bottom: 20px; font-size: 12px;">
+                    <div style="flex: 1; background: #f8fafc; border: 1px solid #cbd5e1; padding: 10px; border-radius: 6px; text-align: center;">
+                        <div style="font-size: 18px; font-weight: bold; color: #2563eb;">${totalAudited}</div>
+                        <div style="color: #64748b; font-weight: 600;">Total Points Audited</div>
+                    </div>
+                    <div style="flex: 1; background: #f8fafc; border: 1px solid #cbd5e1; padding: 10px; border-radius: 6px; text-align: center;">
+                        <div style="font-size: 18px; font-weight: bold; color: #16a34a;">${netApplicable}</div>
+                        <div style="color: #64748b; font-weight: 600;">Applicable Points (Excl. N/A)</div>
+                    </div>
+                    <div style="flex: 1; background: #f8fafc; border: 1px solid #cbd5e1; padding: 10px; border-radius: 6px; text-align: center;">
+                        <div style="font-size: 18px; font-weight: bold; color: #2563eb;">${totalPass} Pass / ${totalFail} Fail / ${totalNA} N/A</div>
+                        <div style="color: #64748b; font-weight: 600;">Score Breakdown</div>
+                    </div>
+                    <div style="flex: 1; background: #eff6ff; border: 2px solid #2563eb; padding: 10px; border-radius: 6px; text-align: center;">
+                        <div style="font-size: 20px; font-weight: bold; color: #1e3a8a;">${complianceRate}</div>
+                        <div style="color: #1e3a8a; font-weight: bold;">True Compliance Rate</div>
+                    </div>
+                </div>
+
                 <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 10px;">
                     <thead>
                         <tr style="background: #f1f5f9; border-bottom: 2px solid #cbd5e1;">
-                            <th style="border: 1px solid #cbd5e1; padding: 8px; text-align: left;">Line ID</th>
-                            <th style="border: 1px solid #cbd5e1; padding: 8px; text-align: left;">Section</th>
-                            <th style="border: 1px solid #cbd5e1; padding: 8px; text-align: left;">Assessment Checkpoint Metric</th>
-                            <th style="border: 1px solid #cbd5e1; padding: 8px; text-align: center;">Status</th>
-                            <th style="border: 1px solid #cbd5e1; padding: 8px; text-align: left;">Non-Conformance Remarks</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 8px; text-align: left; width: 12%;">Line ID</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 8px; text-align: left; width: 12%;">Section</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 8px; text-align: left; width: 48%;">Assessment Checkpoint Metric</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 8px; text-align: center; width: 10%;">Status</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 8px; text-align: left; width: 18%;">Non-Conformance Remarks</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${matches.map(row => `
-                            <tr>
+                            <tr style="page-break-inside: avoid; break-inside: avoid;">
                                 <td style="border: 1px solid #e2e8f0; padding: 6px; font-weight: bold;">${row.line}</td>
                                 <td style="border: 1px solid #e2e8f0; padding: 6px;">${row.section}</td>
                                 <td style="border: 1px solid #e2e8f0; padding: 6px;">${row.question}</td>
-                                <td style="border: 1px solid #e2e8f0; padding: 6px; text-align: center; font-weight: bold; color: ${row.status === 'Pass' ? '#16a34a' : (row.status === 'Fail' ? '#dc2626' : '#475569')}">${row.status}</td>
+                                <td style="border: 1px solid #e2e8f0; padding: 6px; text-align: center; font-weight: bold; color: ${row.status === 'Pass' ? '#16a34a' : (row.status === 'Fail' ? '#dc2626' : '#64748b')}">${row.status}</td>
                                 <td style="border: 1px solid #e2e8f0; padding: 6px; font-style: italic; color: #dc2626;">${row.comment || '-'}</td>
                             </tr>
                         `).join('')}
@@ -962,17 +995,18 @@
             `;
 
             const opt = {
-                margin: 10,
+                margin: [15, 12, 15, 12],
                 filename: `Consolidated_QMS_Report_${targetSBU}_${targetDate}.pdf`,
-                html2canvas: { scale: 2 },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true, logging: false },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+                pagebreak: { mode: ['avoid-all', 'css'] }
             };
             html2pdf().set(opt).from(element).save();
         })
         .catch(err => alert("Data integration loss: " + err));
     }
 
-    // ANALYSIS CHECKPOINT MATRIX PDF GENERATOR
     function downloadAnalysisPDF() {
         const sbuScope = document.getElementById('analysis-sbu-filter').value;
         const analyticStart = document.getElementById('analysis-start-date').value || 'Beginning';
@@ -1010,10 +1044,11 @@
         `;
 
         const opt = {
-            margin: 10,
+            margin: [15, 12, 15, 12],
             filename: `Checkpoint_Deep_Analysis_Matrix.pdf`,
             html2canvas: { scale: 2 },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            pagebreak: { mode: ['avoid-all', 'css'] }
         };
         html2pdf().set(opt).from(element).save();
     }
