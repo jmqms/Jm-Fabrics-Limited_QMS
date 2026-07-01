@@ -657,7 +657,7 @@
             </table>
             <div style="margin-top: 60px; display: flex; justify-content: space-between; font-size: 12px;">
                 <div><p>__________________________</p><p>Floor Auditor Signature</p></div>
-                <div><p>__________________________</p><p>QMS Supervisor Verification</p></div>
+                <div><p>__________________________</p><p>QMS Verification Authority</p></div>
             </div>
         `;
 
@@ -679,7 +679,7 @@
         const tableBody = document.getElementById('dashboard-table-body');
         const failureTableBody = document.getElementById('checkpoint-failures-table-body');
         
-        tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center;">🔄 Requesting latest calculations from server...</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center;">🔄 Requesting latest calculations...</td></tr>`;
         
         fetch(CLOUD_API_URL)
         .then(res => res.json())
@@ -707,7 +707,7 @@
             document.getElementById('stat-factory-compliance').innerText = trackingPercentage;
 
             if (countTotal === 0) {
-                tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#94a3b8;">No entries found for requested timeframe parameters.</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#94a3b8;">No entries found.</td></tr>`;
                 failureTableBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#94a3b8;">No exceptions flagged.</td></tr>`;
                 return;
             }
@@ -758,31 +758,31 @@
                             <td><strong>${line}</strong></td>
                             <td><span class="badge" style="background:#64748b">${section}</span></td>
                             <td style="color:#334155; font-size:14px;">${textQuestion}</td>
-                            <td><span class="fail-tag">🚨 Registered Failure Count: ${breakdown.fail}</span></td>
+                            <td><span class="fail-tag">🚨 Failures: ${breakdown.fail}</span></td>
                         </tr>
                     `;
                 }
             }
             if (!problemsExist) {
-                failureTableBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#16a34a; font-weight:bold; padding:20px;">🎉 Perfect Run! No non-conformances identified.</td></tr>`;
+                failureTableBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#16a34a; font-weight:bold; padding:20px;">🎉 No non-conformances flagged.</td></tr>`;
             }
         })
         .catch(err => {
-            tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:red;">Cloud API Exception Encountered: ${err}</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:red;">Cloud API Exception: ${err}</td></tr>`;
         });
     }
 
     // SYSTEM ROWS LOG VIEWER RUNTIME
     function loadLogs() {
         const tableBody = document.getElementById('logs-table-body');
-        tableBody.innerHTML = `<tr><td colspan="8" style="text-align:center;">🔄 Syncing master document table context arrays...</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="8" style="text-align:center;">🔄 Syncing database tables...</td></tr>`;
         
         fetch(CLOUD_API_URL)
         .then(res => res.json())
         .then(dataArray => {
             tableBody.innerHTML = '';
             if(!dataArray || dataArray.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="8" style="text-align:center;">No cloud tracking indices found.</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="8" style="text-align:center;">No entries found.</td></tr>`;
                 return;
             }
             dataArray.reverse().forEach(row => {
@@ -848,10 +848,10 @@
         const mainAnalyticsTable = document.getElementById('analysis-table-body');
 
         if(!exactTargetQuestion) {
-            mainAnalyticsTable.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#94a3b8;">Set parameters and select a target checkpoint to load tracking tables.</td></tr>`;
+            mainAnalyticsTable.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#94a3b8;">Select parameters to run matrix evaluation.</td></tr>`;
             return;
         }
-        mainAnalyticsTable.innerHTML = `<tr><td colspan="5" style="text-align:center;">🔄 Querying cloud datasets...</td></tr>`;
+        mainAnalyticsTable.innerHTML = `<tr><td colspan="5" style="text-align:center;">🔄 Querying dataset records...</td></tr>`;
 
         fetch(CLOUD_API_URL)
         .then(res => res.json())
@@ -900,22 +900,22 @@
                 `;
             }
             if(!matrixDataExists) {
-                mainAnalyticsTable.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#94a3b8;">No matching entry data matching criteria parameters.</td></tr>`;
+                mainAnalyticsTable.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#94a3b8;">No matching context values recorded.</td></tr>`;
             }
         });
     }
 
     function clearAllData() {
-        alert('Visual cleared. The underlying structural files inside your Google Sheet are unmodified.');
-        document.getElementById('logs-table-body').innerHTML = `<tr><td colspan="8" style="text-align:center; color:#64748b;">Cache empty. Change tabs to query cloud server database.</td></tr>`;
+        alert('Visual logs cleared.');
+        document.getElementById('logs-table-body').innerHTML = `<tr><td colspan="8" style="text-align:center; color:#64748b;">Cache empty.</td></tr>`;
     }
 
-    // FIXED BULK DAILY REPORT PDF CONVERSION ENGINE
+    // BULK DAILY REPORT PDF GENERATION
     function downloadBulkDailyReport() {
         const targetSBU = document.getElementById('bulk-download-sbu').value;
         const targetDate = document.getElementById('bulk-download-date').value;
 
-        if (!targetDate) { alert("Please select an appraisal target date!"); return; }
+        if (!targetDate) { alert("Please select an appraisal target date."); return; }
 
         fetch(CLOUD_API_URL)
         .then(res => res.json())
@@ -923,7 +923,7 @@
             const matches = dataStream.filter(row => row.sbu === targetSBU && row.date === targetDate);
 
             if (matches.length === 0) {
-                alert(`No records found in the database for ${targetSBU} on date: ${targetDate}.`);
+                alert(`No records found for ${targetSBU} on date: ${targetDate}.`);
                 return;
             }
 
@@ -959,10 +959,6 @@
                         `).join('')}
                     </tbody>
                 </table>
-                <div style="margin-top: 50px; display: flex; justify-content: space-between; font-size: 11px;">
-                    <div><p>__________________________</p><p>Compiled By (QMS Floor Inspector)</p></div>
-                    <div><p>__________________________</p><p>Authorized Signatory (Quality Head)</p></div>
-                </div>
             `;
 
             const opt = {
@@ -976,14 +972,14 @@
         .catch(err => alert("Data integration loss: " + err));
     }
 
-    // FIXED ANALYSIS CHECKPOINT MATRIX PDF GENERATOR
+    // ANALYSIS CHECKPOINT MATRIX PDF GENERATOR
     function downloadAnalysisPDF() {
         const sbuScope = document.getElementById('analysis-sbu-filter').value;
         const analyticStart = document.getElementById('analysis-start-date').value || 'Beginning';
         const analyticEnd = document.getElementById('analysis-end-date').value || 'Present';
         const exactTargetQuestion = document.getElementById('analysis-checkpoint-filter').value;
         
-        if(!exactTargetQuestion) { alert("Please select a valid checkpoint target to run evaluation prints."); return; }
+        if(!exactTargetQuestion) { alert("Please select a valid checkpoint target."); return; }
 
         const sourceTable = document.getElementById('analysis-table-body').cloneNode(true);
         const element = document.createElement('div');
